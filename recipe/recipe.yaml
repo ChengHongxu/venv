@@ -1,0 +1,66 @@
+schema_version: 1
+
+context:
+  version: "0.1.0"
+
+package:
+  name: venv
+  version: ${{ version }}
+
+source:
+  # Only for LICENSE; the binary comes from the GitHub Release for this tag.
+  - git: https://github.com/ChengHongxu/venv.git
+    tag: v${{ version }}
+
+build:
+  number: 0
+  skip:
+    - win
+  # The binaries are static (musl, static-pie). Running patchelf on them
+  # corrupts them, so the installed `venv` segfaults.
+  dynamic_linking:
+    binary_relocation: false
+  script:
+    - |
+      set -euo pipefail
+      case "${{ target_platform }}" in
+        linux-64)      asset=venv-linux-amd64 ;;
+        linux-aarch64) asset=venv-linux-arm64 ;;
+        osx-arm64)     asset=venv-darwin-arm64 ;;
+        *) echo "no prebuilt venv for ${{ target_platform }}" >&2; exit 1 ;;
+      esac
+      base=https://github.com/ChengHongxu/venv/releases/download/v${{ version }}
+      curl -fsSL -o "$asset" "$base/$asset"
+      curl -fsSL -o SHA256SUMS "$base/SHA256SUMS"
+      grep " $asset\$" SHA256SUMS > expected.sha256
+      if command -v sha256sum >/dev/null; then sha256sum -c expected.sha256; else shasum -a 256 -c expected.sha256; fi
+      mkdir -p "$PREFIX/bin"
+      install -m 755 "$asset" "$PREFIX/bin/venv"
+
+requirements:
+  build:
+    - curl
+
+tests:
+  - script:
+      - venv --version
+      - venv --help
+      - venv hook zsh
+
+about:
+  homepage: https://github.com/ChengHongxu/venv
+  repository: https://github.com/ChengHongxu/venv
+  license: MIT
+  license_file: LICENSE
+  summary: Manage named Python environments backed by pixi, uv or python -m venv
+  description: |
+    管理 $VENVS_HOME（默认 ~/.venvs）下的具名 Python 环境，后端可选 pixi、uv、python-venv。
+    在当前 shell 里切换环境（zsh、bash），声明文件可以放进 dotfiles 同步。
+
+    安装后运行一次 `venv init`，它会把 `eval "$(venv hook zsh)"`（或 bash 版）
+    写进启动文件，然后重开终端。
+  documentation: https://github.com/ChengHongxu/venv#readme
+
+extra:
+  recipe-maintainers:
+    - ChengHongxu

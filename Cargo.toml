@@ -1,0 +1,27 @@
+[package]
+name = "venv"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Manage named Python environments backed by pixi, uv or python -m venv"
+repository = "https://github.com/ChengHongxu/venv"
+readme = "README.md"
+
+[dependencies]
+anyhow = "=1.0.104"
+clap = { version = "=4.6.7", features = ["derive"] }
+console = "=0.16.6"
+dialoguer = { version = "=0.12.0", default-features = false }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+toml = { version = "=1.1.8", default-features = false, features = ["parse", "serde"] }
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

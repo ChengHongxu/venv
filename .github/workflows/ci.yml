@@ -1,0 +1,40 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  check:
+    name: fmt / clippy / test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      # Missing zsh/pixi/uv/python fails the tests instead of skipping them
+      VENV_REQUIRE_BACKENDS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install zsh
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q zsh
+      # A python with ensurepip for the python-venv backend
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pixi and uv
+        run: |
+          curl -fsSL https://pixi.sh/install.sh | bash
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.pixi/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: zsh --version && bash --version | head -1 && pixi --version && uv --version && python3 --version
+      - run: cargo test --locked
