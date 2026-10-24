@@ -370,6 +370,31 @@ fn list_path_which_and_run() {
 }
 
 #[test]
+fn rm_through_a_symlinked_venvs_home() {
+    // dotfiles layout: ~/.venvs -> <repo>/.venvs, so pixi.toml resolves to a
+    // path that does not start with $VENVS_HOME
+    let mut s = Sandbox::new();
+    s.fake_pixi("p");
+    let link = s.root.join("linked-venvs");
+    std::os::unix::fs::symlink(&s.venvs, &link).unwrap();
+    s.extra
+        .push(("VENVS_HOME".into(), link.display().to_string()));
+
+    // Activate once so there is a cached activation for rm to delete
+    ok(&s.shell("bash", "venv switch p"));
+    let cache = s.home.join(".cache/venv/pixi/p.json");
+    assert!(cache.is_file(), "switch should have cached the activation");
+
+    let out = s.venv(&["rm", "p", "--yes"]);
+    ok(&out);
+    assert!(stderr(&out).contains("已删除 p"), "{}", stderr(&out));
+    assert_eq!(ok(&s.venv(&["list", "--names"])), "");
+    assert!(!s.venvs.join("p").exists());
+    assert!(!cache.exists(), "the cached activation is removed too");
+    assert!(link.is_dir(), "the VENVS_HOME link itself stays");
+}
+
+#[test]
 fn help_is_chinese() {
     let s = Sandbox::new();
     let out = ok(&s.venv(&["--help"]));

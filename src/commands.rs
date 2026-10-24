@@ -332,18 +332,26 @@ fn rm(cx: &Ctx, a: &RmArgs) -> Result<()> {
             cx.paths.tilde(target)
         );
     }
-    // With a symlinked manifest the environment itself sits next to the target
+    let dir_is_link = env.dir.symlink_metadata()?.file_type().is_symlink();
+    // With a symlinked manifest the environment itself sits next to the target.
+    // Compare real paths: VENVS_HOME may itself be a symlink (dotfiles), and then
+    // .pixi/ is inside the directory being removed anyway.
+    let real_dir = if dir_is_link {
+        env.dir.clone()
+    } else {
+        env.dir.canonicalize()?
+    };
     let outside = env
         .manifest()
         .and_then(|m| m.parent().map(|d| d.join(".pixi")))
-        .filter(|p| !p.starts_with(&env.dir) && p.is_dir());
+        .filter(|p| !p.starts_with(&real_dir) && p.is_dir());
     let mut what = vec![cx.paths.tilde(&env.dir)];
     if let Some(p) = &outside {
         what.push(cx.paths.tilde(p));
     }
     prompt::confirm(&format!("删除 {}？", what.join(" 和 ")), a.yes)?;
 
-    if env.dir.symlink_metadata()?.file_type().is_symlink() {
+    if dir_is_link {
         std::fs::remove_file(&env.dir)?;
     } else {
         // Does not follow symlinks, so a linked pixi.toml's target stays
