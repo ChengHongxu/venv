@@ -1,6 +1,6 @@
 [package]
 name = "venv"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT"
 description = "Manage named Python environments backed by pixi, uv or python -m venv"
